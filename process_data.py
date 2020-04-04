@@ -1,14 +1,21 @@
-import pandas
 import json
 
-with open('data.json', 'r') as f:
-    df = pandas.read_json(f, orient='records')
+import math
+import numpy
+import pandas
 
-va_data = df[['date', 'positive']][df.state=='VA']
+def main():
+    with open('data.json', 'r') as f:
+        df = pandas.read_json(f, orient='records')
+    df.sort_values(['date'], ascending=True, inplace=True)
 
-# These WMA/HMA implementations are taken from finta, they don't apply yet, 
-# but I'll fix them soon
-def WMA(cls, ohlc: pandas.DataFrame, period: int = 9, column: str = "close") -> pandas.Series:
+    va_data = df[['date', 'positive']][df.state=='VA']
+    va_hma = HMA(va_data, 7, 'positive')
+    print(va_hma)
+    globals().update(locals())
+
+# WMA/HMA implementations modified from finta
+def WMA(df: pandas.DataFrame, period: int = 7, column: str = "positive") -> pandas.Series:
     """
     WMA stands for weighted moving average. It helps to smooth the price curve for better trend identification.
     It places even greater importance on recent data than the EMA does.
@@ -16,20 +23,22 @@ def WMA(cls, ohlc: pandas.DataFrame, period: int = 9, column: str = "close") -> 
     """
 
     d = (period * (period + 1)) / 2  # denominator
-    _weights = pd.Series(np.arange(1, period + 1))
-    weights = _weights.iloc[::-1]  # reverse the series
+    weights = pandas.Series(numpy.arange(1, period + 1))
+    # weights = _weights.iloc[::-1]  # reverse the series
 
     def linear(w):
         def _compute(x):
+            # print(w*x)
+            # import pdb; pdb.set_trace()
             return (w * x).sum() / d
         return _compute
 
-    close_ = ohlc["close"].rolling(period, min_periods=period)
-    wma = close_.apply(linear(weights), raw=True)
+    close_ = df[column].rolling(period, min_periods=period)
+    wma = close_.apply(linear(weights))
 
-    return pd.Series(wma, name="{0} period WMA.".format(period))
+    return pandas.Series(wma, name="{0} period WMA.".format(period))
 
-def HMA(cls, ohlc: pandas.DataFrame, period: int = 16) -> pandas.Series:
+def HMA(df: pandas.DataFrame, period: int = 7, column: str = "positive") -> pandas.Series:
     """
     HMA indicator is a common abbreviation of Hull Moving Average.
     The average was developed by Allan Hull and is used mainly to identify the current market trend.
@@ -39,14 +48,21 @@ def HMA(cls, ohlc: pandas.DataFrame, period: int = 16) -> pandas.Series:
     :period: Specifies the number of Periods used for WMA calculation
     """
 
-    import math
-
     half_length = int(period / 2)
     sqrt_length = int(math.sqrt(period))
+    print(half_length, sqrt_length)
 
-    wmaf = cls.WMA(ohlc, period=half_length)
-    wmas = cls.WMA(ohlc, period=period)
-    ohlc['deltawma'] = 2 * wmaf - wmas
-    hma = cls.WMA(ohlc, column="deltawma", period=sqrt_length)
+    
+    delta_wma = pandas.DataFrame({'data': df[column]})
+    wmaf = WMA(df, period=half_length, column=column)
+    wmas = WMA(df, period=period, column=column)
+    delta_wma[f'wma {half_length}'] = wmaf
+    delta_wma[f'wma {period}'] = wmas
+    delta_wma['dwma'] = 2 * wmaf - wmas
+    hma = WMA(delta_wma, column="dwma", period=sqrt_length)
+    delta_wma[f'hma {period}'] = hma
 
-    return pd.Series(hma, name="{0} period HMA.".format(period))
+    return delta_wma
+
+if __name__ == '__main__':
+    main()
