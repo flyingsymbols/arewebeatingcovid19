@@ -1,8 +1,17 @@
-import json
-
+import os
 import math
+import json
 import numpy
 import pandas
+
+DIR = os.path.dirname(__file__)
+def rel(*p): return os.path.normpath(os.path.join(DIR, *p))
+
+def read_json(fpath):
+    with open(fpath, 'r') as f:
+        return json.load(f)
+
+STATE_DATA = read_json(rel('static_data/state_data.json'))
 
 def main():
     with open('data.json', 'r') as f:
@@ -10,8 +19,21 @@ def main():
     df.sort_values(['date'], ascending=True, inplace=True)
 
     va_data = df[['date', 'positive']][df.state=='VA']
-    va_hma = HMA(va_data, 7, 'positive')
-    print(va_hma)
+    va_data_orig = va_data.copy()
+    va_data.rename(columns={'positive': '+'}, inplace=True)
+    va_data['new +'] = va_data['+'].diff(periods=1)
+    va_data['hma(+, 7)'] = HMA(va_data, 7, '+')
+    va_data['hma(new +, 7)'] = HMA(va_data, 7, 'new +')
+    va_data_ind = STATE_DATA['abbrev_ind']['VA']
+    va_pop = STATE_DATA['data'][va_data_ind]['population']
+
+    norm_cols = ['+', 'new +', 'hma(+, 7)', 'hma(new +, 7)']
+    for c in norm_cols:
+        norm_c = f'{c}/100k'
+        va_data[norm_c] = va_data[c]/va_pop*100000
+
+    print(va_data)
+    # print(va_data)
     globals().update(locals())
 
 # WMA/HMA implementations modified from finta
@@ -28,13 +50,17 @@ def WMA(df: pandas.DataFrame, period: int = 7, column: str = "positive") -> pand
 
     def linear(w):
         def _compute(x):
-            # print(w*x)
+            # print(x)
+            # print(w)
             # import pdb; pdb.set_trace()
             return (w * x).sum() / d
         return _compute
 
+    print(weights)
     close_ = df[column].rolling(period, min_periods=period)
-    wma = close_.apply(linear(weights))
+    print(close_)
+    wma = close_.apply(linear(weights), raw=True)
+    print(wma)
 
     return pandas.Series(wma, name="{0} period WMA.".format(period))
 
@@ -62,7 +88,7 @@ def HMA(df: pandas.DataFrame, period: int = 7, column: str = "positive") -> pand
     hma = WMA(delta_wma, column="dwma", period=sqrt_length)
     delta_wma[f'hma {period}'] = hma
 
-    return delta_wma
+    return hma
 
 if __name__ == '__main__':
     main()
