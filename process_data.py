@@ -19,6 +19,7 @@ def main():
     df.sort_values(['date'], ascending=True, inplace=True)
 
     va_data = df[['date', 'positive']][df.state=='VA']
+    va_data.set_index('date', inplace=True)
     va_data_orig = va_data.copy()
     va_data.rename(columns={'positive': '+'}, inplace=True)
     va_data['new +'] = va_data['+'].diff(periods=1)
@@ -33,6 +34,7 @@ def main():
         va_data[norm_c] = va_data[c]/va_pop*100000
 
     print(va_data)
+    va_json_str = va_data.to_json(orient='records', indent=1);
     # print(va_data)
     globals().update(locals())
 
