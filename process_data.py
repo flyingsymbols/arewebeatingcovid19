@@ -1,4 +1,5 @@
 import os
+import copy
 import math
 import json
 import numpy
@@ -13,28 +14,58 @@ def read_json(fpath):
 
 STATE_DATA = read_json(rel('static_data/state_data.json'))
 
+OUT_JSON_PATH = rel('docs/data/state_data.js')
+
 def main():
     with open('data.json', 'r') as f:
         df = pandas.read_json(f, orient='records')
+
     df.sort_values(['date'], ascending=True, inplace=True)
 
-    va_data = df[['date', 'positive']][df.state=='VA']
-    va_data.set_index('date', inplace=True)
-    va_data_orig = va_data.copy()
-    va_data.rename(columns={'positive': '+'}, inplace=True)
-    va_data['new +'] = va_data['+'].diff(periods=1)
-    va_data['hma(+, 7)'] = HMA(va_data, 7, '+')
-    va_data['hma(new +, 7)'] = HMA(va_data, 7, 'new +')
-    va_data_ind = STATE_DATA['abbrev_ind']['VA']
-    va_pop = STATE_DATA['data'][va_data_ind]['population']
+    state_calc_data = copy.deepcopy(STATE_DATA)
 
-    norm_cols = ['+', 'new +', 'hma(+, 7)', 'hma(new +, 7)']
-    for c in norm_cols:
-        norm_c = f'{c}/100k'
-        va_data[norm_c] = va_data[c]/va_pop*100000
+    for state_abbrev, data_row_i in sorted(state_calc_data['abbrev_ind'].items()):
+        state_data = df[['date', 'positive']][df.state==state_abbrev]
+        state_data.set_index('date', inplace=True)
+        state_data.rename(columns={'positive': '+'}, inplace=True)
+        state_data['new +'] = state_data['+'].diff(periods=1)
+        state_data['hma(+, 7)'] = HMA(state_data, 7, '+')
+        state_data['hma(new +, 7)'] = HMA(state_data, 7, 'new +')
+        state_data_ind = STATE_DATA['abbrev_ind']['VA']
+        state_pop = STATE_DATA['data'][state_data_ind]['population']
 
-    print(va_data)
-    va_json_str = va_data.to_json(orient='records', indent=1);
+        norm_cols = ['+', 'new +', 'hma(+, 7)', 'hma(new +, 7)']
+        for c in norm_cols:
+            norm_c = f'{c}/100k'
+            state_data[norm_c] = state_data[c]/state_pop*100000
+
+        state_row = state_calc_data['data'][data_row_i]
+        # This leaves off the index of the dataseries, which is the date,
+        state_row['data'] = state_data.to_dict(orient='list')
+        # so we want to add it back in again:
+        state_dates = state_data.index.to_list()
+        state_row['data']['date'] = state_dates
+        # and we generate labels for the first and the last element
+        state_labels = [None]*len(state_data.index)
+        def to_label(date_int):
+            '''
+            converts a date int (YYYYMMDD) to a string SS M/DD,
+            e.g. VA 4/05
+            '''
+            dd = date_int % 100
+            mm = (date_int // 100) % 100
+            return f'{state_abbrev} {dd}/{mm:02}'
+
+
+        for label_ind in [0, -1]:
+            state_labels[label_ind] = to_label(state_dates[label_ind])
+
+        state_row['data']['labels'] = state_labels
+
+    state_json_str = json.dumps(state_calc_data, indent=1)
+    with open(OUT_JSON_PATH, 'w') as f:
+        f.write(f'var STATE_DATA = {state_json_str};')
+
     # print(va_data)
     globals().update(locals())
 
@@ -58,11 +89,8 @@ def WMA(df: pandas.DataFrame, period: int = 7, column: str = "positive") -> pand
             return (w * x).sum() / d
         return _compute
 
-    print(weights)
     close_ = df[column].rolling(period, min_periods=period)
-    print(close_)
     wma = close_.apply(linear(weights), raw=True)
-    print(wma)
 
     return pandas.Series(wma, name="{0} period WMA.".format(period))
 
@@ -78,8 +106,6 @@ def HMA(df: pandas.DataFrame, period: int = 7, column: str = "positive") -> pand
 
     half_length = int(period / 2)
     sqrt_length = int(math.sqrt(period))
-    print(half_length, sqrt_length)
-
     
     delta_wma = pandas.DataFrame({'data': df[column]})
     wmaf = WMA(df, period=half_length, column=column)
