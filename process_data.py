@@ -16,14 +16,6 @@ STATE_DATA = read_json(rel('static_data/state_data.json'))
 
 OUT_JSON_PATH = rel('docs/data/state_data.js')
 
-class FloatRound2JSONEncoder(json.JSONEncoder):
-    def encode(self, o):
-        import pdb; pdb.set_trace()
-        if isinstance(o, float):
-            o = round(o, 2)
-        return json.JSONEncoder.encode(self, o)
-
-
 def main():
     with open('data.json', 'r') as f:
         df = pandas.read_json(f, orient='records')
@@ -33,21 +25,21 @@ def main():
     state_calc_data = copy.deepcopy(STATE_DATA)
 
     for state_abbrev, data_row_i in sorted(state_calc_data['abbrev_ind'].items()):
+        state_row = state_calc_data['data'][data_row_i]
+
         state_data = df[['date', 'positive']][df.state==state_abbrev]
         state_data.set_index('date', inplace=True)
         state_data.rename(columns={'positive': '+'}, inplace=True)
         state_data['new +'] = state_data['+'].diff(periods=1)
         state_data['hma(+, 7)'] = HMA(state_data, 7, '+')
         state_data['hma(new +, 7)'] = HMA(state_data, 7, 'new +')
-        state_data_ind = STATE_DATA['abbrev_ind']['VA']
-        state_pop = STATE_DATA['data'][state_data_ind]['population']
+        state_pop = state_row['population']
 
         norm_cols = ['+', 'new +', 'hma(+, 7)', 'hma(new +, 7)']
         for c in norm_cols:
             norm_c = f'{c}/100k'
             state_data[norm_c] = state_data[c]/state_pop*100000
 
-        state_row = state_calc_data['data'][data_row_i]
         # This leaves off the index of the dataseries, which is the date,
         state_row['data'] = state_data.to_dict(orient='list')
         # so we want to add it back in again:
@@ -68,7 +60,7 @@ def main():
 
         state_row['data']['labels'] = state_labels
 
-    state_json_str = json.dumps(state_calc_data, indent=1, cls=FloatRound2JSONEncoder)
+    state_json_str = json.dumps(state_calc_data, indent=1)
     with open(OUT_JSON_PATH, 'w') as f:
         f.write(f'var STATE_DATA = {state_json_str};')
 
