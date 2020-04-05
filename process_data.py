@@ -16,6 +16,14 @@ STATE_DATA = read_json(rel('static_data/state_data.json'))
 
 OUT_JSON_PATH = rel('docs/data/state_data.js')
 
+class FloatRound2JSONEncoder(json.JSONEncoder):
+    def encode(self, o):
+        import pdb; pdb.set_trace()
+        if isinstance(o, float):
+            o = round(o, 2)
+        return json.JSONEncoder.encode(self, o)
+
+
 def main():
     with open('data.json', 'r') as f:
         df = pandas.read_json(f, orient='records')
@@ -45,8 +53,7 @@ def main():
         # so we want to add it back in again:
         state_dates = state_data.index.to_list()
         state_row['data']['date'] = state_dates
-        # and we generate labels for the first and the last element
-        state_labels = [None]*len(state_data.index)
+
         def to_label(date_int):
             '''
             converts a date int (YYYYMMDD) to a string SS M/DD,
@@ -54,15 +61,14 @@ def main():
             '''
             dd = date_int % 100
             mm = (date_int // 100) % 100
-            return f'{state_abbrev} {dd}/{mm:02}'
+            return f'{state_abbrev} {mm}/{dd:02}'
 
-
-        for label_ind in [0, -1]:
-            state_labels[label_ind] = to_label(state_dates[label_ind])
+        # and we generate labels for the first and the last element
+        state_labels = [to_label(d) for d in state_data.index]
 
         state_row['data']['labels'] = state_labels
 
-    state_json_str = json.dumps(state_calc_data, indent=1)
+    state_json_str = json.dumps(state_calc_data, indent=1, cls=FloatRound2JSONEncoder)
     with open(OUT_JSON_PATH, 'w') as f:
         f.write(f'var STATE_DATA = {state_json_str};')
 
