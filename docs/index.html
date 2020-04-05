@@ -3,14 +3,33 @@
 <title>Are We Beating COVID-19: US States</title>
 <script type="text/javascript" src="libs/chartjs/Chart.bundle.min.js"></script>
 <script type="text/javascript" src="libs/chartjs/chartjs-plugin-datalabels.min.js"></script>
+
+<script type="text/javascript" src="libs/slimselect.min.js"></script>
+<link href="libs/slimselect.min.css" rel="stylesheet"></link>
+
 <script type="text/javascript" src="data/state_data.js"></script>
 
 </head>
 <body>
+<select id="state-select">
+</select>
 <div class="chart-container" style="position: relative; height:40vh; width:80vw">
 	<canvas id="chart"></canvas>
 </div>
 <script>
+// set up slim select for state selectors
+var state_slimselect_opts = [];
+for (var state_name in STATE_DATA.name_ind) {
+  state_slimselect_opts.push({
+    text: state_name
+  })
+}
+var slim_select = new SlimSelect({
+  select: '#state-select',
+  data: state_slimselect_opts
+})
+
+// Set up chart js
 var label_func = function(value, context) {
   if ('label' in value) {
     return value.label; 
