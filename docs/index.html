@@ -3,6 +3,7 @@
 <title>Are We Beating COVID-19: US States</title>
 <script type="text/javascript" src="libs/chartjs/Chart.bundle.min.js"></script>
 <script type="text/javascript" src="libs/chartjs/chartjs-plugin-datalabels.min.js"></script>
+<script type="text/javascript" src="data/state_data.js"></script>
 
 </head>
 <body>
@@ -24,38 +25,71 @@ var log_tick_func = function(tick) {
   }
   return '';
 };
+var state_chartjs_dataset = function(state_name) {
+  var state_row_i = STATE_DATA.name_ind[state_name];
+  var state_row = STATE_DATA.data[state_row_i];
+  var state_pop = state_row.population;
+  var state_data = state_row.data;
+  var x_data = state_data['hma(+, 7)/100k'];
+  var y_data = state_data['hma(new +, 7)/100k'];
+  var label_data = state_data.labels;
+  
+  var chartjs_data = [];
+
+  for (var i = 0; i < x_data.length; ++i) {
+    var entry = {
+      x: x_data[i],
+      y: y_data[i]
+    };
+    if (label_data[i] !== null) {
+      entry.label = label_data[i];
+    }
+    chartjs_data.push(entry);
+  }
+
+  var chartjs_dataset = {
+    label: state_name,
+    fill: false,
+    data: chartjs_data
+  };
+
+  return chartjs_dataset
+};
+var calced_va_dataset = state_chartjs_dataset('Virginia');
+var canned_va_dataset = {
+  label: 'Virginia',
+  fill: false,
+  data: [
+    { x: 20.4, y: 3.02, label: 'VA 4/2' },
+    { x: 17.4, y: 2.79 },
+    { x: 14.6, y: 2.24 },
+    { x: 12.4, y: 1.85 },
+    { x: 10.6, y: 1.95 },
+    { x: 8.6, y: 1.75 },
+    { x: 6.9, y: 1.43 },
+    { x: 5.4, y: 1.00 },
+    { x: 4.4, y: 0.81 },
+    { x: 3.6, y: 0.56 },
+    { x: 3.0, y: 0.70 },
+    { x: 2.3, y: 0.65 },
+    { x: 1.7, y: 0.36 },
+    { x: 1.3, y: 0.22 },
+    { x: 1.1, y: 0.18 },
+    { x: 0.9, y: 0.15 },
+    { x: 0.8, y: 0.15 },
+    { x: 0.6, y: 0.11 },
+    { x: 0.5, y: 0.12 },
+    { x: 0.4, y: 0.10 },
+    { x: 0.3, y: 0.12, label: 'VA 3/13' }
+  ]
+};
+
 var ctx = document.getElementById('chart');
 var teh_chart = new Chart(ctx, {
   type: 'line',
   plugins: [ChartDataLabels],
   data: {
-    datasets: [{
-      label: 'Virginia',
-      fill: false,
-      data: [
-        { x: 20.4, y: 3.02, label: 'VA 4/2' },
-        { x: 17.4, y: 2.79 },
-        { x: 14.6, y: 2.24 },
-        { x: 12.4, y: 1.85 },
-        { x: 10.6, y: 1.95 },
-        { x: 8.6, y: 1.75 },
-        { x: 6.9, y: 1.43 },
-        { x: 5.4, y: 1.00 },
-        { x: 4.4, y: 0.81 },
-        { x: 3.6, y: 0.56 },
-        { x: 3.0, y: 0.70 },
-        { x: 2.3, y: 0.65 },
-        { x: 1.7, y: 0.36 },
-        { x: 1.3, y: 0.22 },
-        { x: 1.1, y: 0.18 },
-        { x: 0.9, y: 0.15 },
-        { x: 0.8, y: 0.15 },
-        { x: 0.6, y: 0.11 },
-        { x: 0.5, y: 0.12 },
-        { x: 0.4, y: 0.10 },
-        { x: 0.3, y: 0.12, label: 'VA 3/13' }
-      ]
-    }],
+    datasets: [calced_va_dataset],
   },
   options: {
     plugins: { 
