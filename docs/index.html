@@ -18,6 +18,7 @@ var label_func = function(value, context) {
     return ''
   }
 }
+
 var log_tick_func = function(tick) {
   var remain = tick / (Math.pow(10, Math.floor(Chart.helpers.log10(tick))));
   if (remain === 1 || remain === 2 || remain === 5) {
@@ -25,6 +26,15 @@ var log_tick_func = function(tick) {
   }
   return '';
 };
+
+var show_initial = {
+  "Virginia": 1,
+  "California": 1,
+  "Maryland": 1,
+  "Massachusetts": 1,
+  "New York": 1,
+};
+
 var state_chartjs_dataset = function(state_name) {
   var state_row_i = STATE_DATA.name_ind[state_name];
   var state_row = STATE_DATA.data[state_row_i];
@@ -59,9 +69,11 @@ var state_chartjs_dataset = function(state_name) {
     chartjs_data.push(entry);
   }
 
+  var hidden = !(state_name in show_initial);
   var chartjs_dataset = {
     label: state_name,
     fill: false,
+    hidden: hidden,
     data: chartjs_data
   };
 
