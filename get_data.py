@@ -1,6 +1,8 @@
+import json
 import requests
 
 r = requests.get('https://covidtracking.com/api/states/daily')
+json_obj = json.loads(r.content)
 
-with open('data.json', 'wb') as f:
-    f.write(r.content)
+with open('data.json', 'w') as f:
+    json.dump(json_obj, f, indent=1)
